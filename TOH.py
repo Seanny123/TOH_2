@@ -25,7 +25,9 @@ with model:
 
 
     hanoi_node = toh_node_create
-    bg_actions = spa.Actions("")
+    bg_actions = spa.Actions(
+        "dot(focus, NONE)*0.7/3 --> setfocus=largest, setgoal=largest, setgoalpeg=goalfinal",
+        )
 
     nengo.Connection(hanoi_node.goal, model.goal, synapse=None)
     nengo.Connection(hanoi_node.focus, model.focus, synapse=None)
