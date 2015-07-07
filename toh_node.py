@@ -58,6 +58,7 @@ class TowerOfHanoi(object):
     def __init__(self, name, disk_count, D, vocab):
         self.pstc = 0.01
         self.pegs = [vocab.parse('A'),vocab.parse('B'),vocab.parse('C')]
+        # why would you need to add the NONE vector?
         self.disks = [vocab.parse('D%d'%i) for i in range(disk_count)]+[vocab.parse('NONE')]
         self.reset()
         self.zero = [0]*D
