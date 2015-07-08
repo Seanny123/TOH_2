@@ -12,9 +12,11 @@ def toh_node_create(name, disk_count, D, vocab):
             toh.focus = disks.index(np.max(disks))
         focus_in = nengo.Node(focus_in_func)
 
-        goal_peg = nengo.Node(lambda t, x: toh.goal_peg_data = [np.dot(x, v) for v in toh.pegs])
+        def goal_peg_func(t, x, toh=toh):
+            toh.goal_peg_data = [np.dot(x, v) for v in toh.pegs]
+        goal_peg = nengo.Node(goal_peg_func)
 
-       def goal_in_func(t, x, toh=toh):
+        def goal_in_func(t, x, toh=toh):
             disks = [np.dot(x, v) for v in toh.disks]
             pegs = toh.goal_peg_data
             if np.max(pegs)>threshold and np.max(disks)>threshold:
@@ -23,7 +25,9 @@ def toh_node_create(name, disk_count, D, vocab):
                 toh.target_peg = 'ABC'[pegs.index(np.max(pegs))]
         goal_in = nengo.Node(goal_in_func)
 
-        move_peg = nengo.Node(lambda t, x: toh.move_peg_data=[np.dot(x, v) for v in toh.pegs])
+        def move_peg_func(t, x, toh=toh):
+            toh.move_peg_data=[np.dot(x, v) for v in toh.pegs]
+        move_peg = nengo.Node(move_peg_func)
 
         def move_func(t, x, toh=toh):
             disks = [np.dot(x, v) for v in toh.disks]
@@ -52,6 +56,7 @@ def toh_node_create(name, disk_count, D, vocab):
                 return toh.zero
             return vocab.parse(toh.peg(toh.focus)).v
         focus_peg = nengo.Node(focus_peg_func(toh))
+    return toh_n
 
 
 class TowerOfHanoi(object):
