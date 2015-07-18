@@ -1,9 +1,9 @@
 import constants
 import numpy as np
 
-def toh_node_create(name, disk_count, D, vocab):
+def toh_node_create(disk_count, D, vocab):
     with nengo.Network(label="Tower of Hanoi node") as toh_n:
-        toh = TowerOfHanoi(name, disk_count, D, vocab)
+        toh = TowerOfHanoi(disk_count, D, vocab)
 
         # input nodes
         def focus_in_func(t, x, toh=toh):
@@ -60,7 +60,7 @@ def toh_node_create(name, disk_count, D, vocab):
 
 
 class TowerOfHanoi(object):
-    def __init__(self, name, disk_count, D, vocab):
+    def __init__(self, disk_count, D, vocab):
         self.pstc = 0.01
         self.pegs = [vocab.parse('A'),vocab.parse('B'),vocab.parse('C')]
         # why would you need to add the NONE vector?

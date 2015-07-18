@@ -2,6 +2,7 @@ import nengo
 import nengo.spa as spa
 from constants import *
 from toh_node import toh_node_create
+import ipdb
 
 model = spa.SPA()
 
@@ -28,9 +29,15 @@ with model:
     model.focus_goal_peg_comp = spa.Compare(dimensions)
     model.target_focus_peg_comp = spa.Compare(dimensions)
 
-    spa.Actions("goal = goal_target_peg_comp_A")
+    model.cortical_actions = spa.Actions("goal_target_peg_comp_A = goal_peg", "goal_target_peg_comp_B = target_peg",
+        "focus_goal_comp_A = focus", "focus_goal_comp_B = goal",
+        "focus_goal_peg_comp_A = focus_peg", "focus_goal_peg_comp_B = goal_peg",
+        "target_focus_peg_comp_A = target_peg", "target_focus_peg_comp_B = focus_peg"
+    )
 
-    hanoi_node = toh_node_create
+    model.cortical = spa.Cortical(model.cortical_actions)
+
+    hanoi_node = toh_node_create(disk_count, dimensions, vocab)
     bg_actions = [
         "dot(focus, NONE) --> set_focus=largest, set_goal=largest, set_goal_peg=goal_final",
         "(dot(focus, D2-D1-D0) + dot(goal, D2) - goal_target_peg_comp)/(2**(1/2.0)) --> set_focus=D1",
@@ -58,6 +65,7 @@ with model:
     # somehow connect buffer inputs to the compare networks?
     # Can I use cortical actions to accomplish this?
 
+    ipdb.set_trace()
     nengo.Connection(hanoi_node.goal, model.goal, synapse=None)
     nengo.Connection(hanoi_node.focus, model.focus, synapse=None)
     nengo.Connection(hanoi_node.goal_peg, model.goal_peg, synapse=None)
