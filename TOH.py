@@ -23,29 +23,33 @@ with model:
     model.move_disk = spa.Buffer(dimensions)
     model.move_peg = spa.Buffer(dimensions)
 
-    model.goal_target_peg_comp = spa.Compare()
+    model.goal_target_peg_comp = spa.Compare(dimensions)
+    model.focus_goal_comp = spa.Compare(dimensions)
+    model.focus_goal_peg_comp = spa.Compare(dimensions)
+    model.target_focus_peg_comp = spa.Compare(dimensions)
 
+    spa.Actions("goal = goal_target_peg_comp_A")
 
     hanoi_node = toh_node_create
     bg_actions = [
         "dot(focus, NONE) --> set_focus=largest, set_goal=largest, set_goal_peg=goal_final",
-        "(dot(focus, D2-D1-D0) + dot(goal, D2) - dot(goal_peg, target_peg))/(2**(1/2.0)) --> set_focus=D1",
-        "(dot(focus, D2-D1-D0) + dot(goal, D2) + dot(goal_peg, target_peg))*0.7/(3**(1/2.0)) --> set_focus=D1, set_goal=D1, goal_final=set_goal_peg",
-        "(dot(focus, D1-D0) + dot(goal, D1) - dot(goal_peg, target_peg))/(2**(1/2.0)) --> set_focus=D0",
-        "(dot(focus, D1-D0) + dot(goal, D1) + dot(goal_peg, target_peg))*0.7/(3**(1/2.0)) --> set_focus=D0, set_goal=D0, goal_final=set_goal_peg",
-        "(dot(focus, D0) + dot(goal_peg, target_peg))*0.7/(2**(1/2.0)) --> set_focus=NONE",
-        "(dot(focus, D0) + dot(goal, D0) - dot(goal_peg, target_peg))*0.9/(3**(1/2.0)) --> set_focus=NONE, move_disk=D0, goal_final=set_goal_peg",
-        "(-dot(focus, goal) + dot(focus_peg, goal_peg) - dot(target_peg, focus_peg))*1.3 --> focus=set_goal, set_goal_peg=C+B+A, target_peg=-goal_peg, focus_peg=-set_goal_peg",
-        "(-dot(focus, goal) + dot(focus_peg, goal_peg) - dot(target_peg, focus_peg))*1.3 --> focus=set_goal, set_goal_peg=C+B+A, target_peg=-goal_peg, goal_peg=-set_goal_peg",
-        "dot(focus, D0) + dot(goal, -D0) - 2*dot(target_peg, focus_peg) - 2*dot(target_peg, goal_peg) - 2*dot(focus_peg, goal_peg) --> goal=move_disk, target_peg=move_peg",
-        "(dot(focus, D1) + dot(goal, -D1) - dot(target_peg, focus_peg) - dot(target_peg, goal_peg) - dot(focus_peg, goal_peg))*1.3 --> set_focus=D0"
+        "(dot(focus, D2-D1-D0) + dot(goal, D2) - goal_target_peg_comp)/(2**(1/2.0)) --> set_focus=D1",
+        "(dot(focus, D2-D1-D0) + dot(goal, D2) + goal_target_peg_comp)*0.7/(3**(1/2.0)) --> set_focus=D1, set_goal=D1, goal_final=set_goal_peg",
+        "(dot(focus, D1-D0) + dot(goal, D1) - goal_target_peg_comp)/(2**(1/2.0)) --> set_focus=D0",
+        "(dot(focus, D1-D0) + dot(goal, D1) + goal_target_peg_comp)*0.7/(3**(1/2.0)) --> set_focus=D0, set_goal=D0, goal_final=set_goal_peg",
+        "(dot(focus, D0) + goal_target_peg_comp)*0.7/(2**(1/2.0)) --> set_focus=NONE",
+        "(dot(focus, D0) + dot(goal, D0) - goal_target_peg_comp)*0.9/(3**(1/2.0)) --> set_focus=NONE, move_disk=D0, goal_final=set_goal_peg",
+        "(-focus_goal_comp + focus_goal_peg_comp - target_focus_peg_comp)*1.3 --> focus=set_goal, set_goal_peg=C+B+A, target_peg=-goal_peg, focus_peg=-set_goal_peg",
+        "(-focus_goal_comp + focus_goal_peg_comp - target_focus_peg_comp)*1.3 --> focus=set_goal, set_goal_peg=C+B+A, target_peg=-goal_peg, goal_peg=-set_goal_peg",
+        "dot(focus, D0) + dot(goal, -D0) - 2*target_focus_peg_comp - 2*goal_target_peg_comp - 2*focus_goal_peg_comp --> goal=move_disk, target_peg=move_peg",
+        "(dot(focus, D1) + dot(goal, -D1) - target_focus_peg_comp - goal_target_peg_comp - focus_goal_peg_comp)*1.3 --> set_focus=D0"
         ]
 
     if(disk_count > 3):
         bg_actions.append(
-            "(dot(focus, D2) + dot(goal, -D2) - dot(target_peg, focus_peg) - dot(target_peg, goal_peg) - dot(focus_peg, goal_peg))*1.3 --> set_focus=D1",
-            "(dot(focus, D3-D2-D1-D0) + dot(goal, D3) - dot(goal_peg, target_peg))/(2**(1/2.0)) --> set_focus=D2",
-            "(dot(focus, D3-D2-D1-D0) + dot(goal, D3) + dot(goal_peg, target_peg))*0.7/(3**(1/2.0)) --> set_focus=D2, set_goal=D2, goal_final=set_goal_peg"
+            "(dot(focus, D2) + dot(goal, -D2) - target_focus_peg_comp - goal_target_peg_comp - focus_goal_peg_comp)*1.3 --> set_focus=D1",
+            "(dot(focus, D3-D2-D1-D0) + dot(goal, D3) - goal_target_peg_comp)/(2**(1/2.0)) --> set_focus=D2",
+            "(dot(focus, D3-D2-D1-D0) + dot(goal, D3) + goal_target_peg_comp)*0.7/(3**(1/2.0)) --> set_focus=D2, set_goal=D2, goal_final=set_goal_peg"
             )
 
     model.bg = spa.BasalGanglia(actions=spa.Actions(*tuple(bg_actions)))
