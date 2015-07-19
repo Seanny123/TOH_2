@@ -1,36 +1,45 @@
-import constants
+from constants import *
 import numpy as np
+import nengo
+
+import ipdb
+
+def get_similarity_array(x, thingys):
+    return [np.dot(x, thing.v) for thing in thingys]
 
 def toh_node_create(disk_count, D, vocab):
     with nengo.Network(label="Tower of Hanoi node") as toh_n:
         toh = TowerOfHanoi(disk_count, D, vocab)
 
         # input nodes
-        def focus_in_func(t, x, toh=toh):
-            # I am so confused with casting and vectorization here
-            disks = [np.dot(x, v) for v in toh.disks] # this is repeated a lot
-            toh.focus = disks.index(np.max(disks))
-        focus_in = nengo.Node(focus_in_func)
+        def focus_in_func(t, x):
+            # vectorize and abstract to function
+            tmp_disks = get_similarity_array(x, toh.disks)
+            # this should be a scalar value being passed into 
+            #ipdb.set_trace()
+            # wait, wtf is np.max supposed to be getting?
+            toh.focus = tmp_disks.index(np.max(tmp_disks))
+        toh_n.focus_in = nengo.Node(focus_in_func, size_in=D)
 
-        def goal_peg_func(t, x, toh=toh):
-            toh.goal_peg_data = [np.dot(x, v) for v in toh.pegs]
-        goal_peg = nengo.Node(goal_peg_func)
+        def goal_peg_func(t, x):
+            toh.goal_peg_data = get_similarity_array(x, toh.pegs)
+        toh_n.goal_peg = nengo.Node(goal_peg_func, size_in=D)
 
-        def goal_in_func(t, x, toh=toh):
-            disks = [np.dot(x, v) for v in toh.disks]
+        def goal_in_func(t, x):
+            disks = get_similarity_array(x, toh.disks)
             pegs = toh.goal_peg_data
             if np.max(pegs)>threshold and np.max(disks)>threshold:
                 toh.goal = disks.index(np.max(disks))
                 # repeated twice, uncertain of function
                 toh.target_peg = 'ABC'[pegs.index(np.max(pegs))]
-        goal_in = nengo.Node(goal_in_func)
+        toh_n.goal_in = nengo.Node(goal_in_func, size_in=D)
 
-        def move_peg_func(t, x, toh=toh):
-            toh.move_peg_data=[np.dot(x, v) for v in toh.pegs]
-        move_peg = nengo.Node(move_peg_func)
+        def move_peg_func(t, x):
+            toh.move_peg_data=get_similarity_array(x, toh.pegs)
+        toh_n.move_peg = nengo.Node(move_peg_func, size_in=D)
 
-        def move_func(t, x, toh=toh):
-            disks = [np.dot(x, v) for v in toh.disks]
+        def move_func(t, x):
+            disks = get_similarity_array(x, toh.disks)
             pegs = toh.move_peg_data
             if np.max(pegs)>threshold and np.max(disks)>threshold:
                 disk = disks.index(np.max(disks))
@@ -41,27 +50,29 @@ def toh_node_create(disk_count, D, vocab):
                         print 'Moving D%d to %s'%(disk,peg)
                     else:    
                         print 'Cannot move D%d to %s'%(disk,peg)
-        move = nengo.Node(move_func)
+        toh_n.move = nengo.Node(move_func, size_in=D)
 
 
-        # output nodes # might need to be made lambdas
-        largest = nengo.Node(toh.disks[toh.largest].v)
-        goal_out = nengo.Node(toh.disks[toh.goal].v)
-        focus_out = nengo.Node(toh.disks[toh.focus].v)
-        goal_peg_out = nengo.Node(vocab.parse(toh.peg(toh.goal)).v)
-        target_peg = nengo.Node(vocab.parse(toh.target_peg).v)
-        goal_final = nengo.Node(vocab.parse(toh.target[toh.goal]).v)
-        def focus_peg_func(toh=toh):
+        # output nodes # might need to be made lambdas # also, size_in?
+        # wtf, why do these need to be attributes now?
+        toh_n.largest = nengo.Node(toh.disks[toh.largest].v)
+        toh_n.goal_out = nengo.Node(toh.disks[toh.goal].v)
+        toh_n.focus_out = nengo.Node(toh.disks[toh.focus].v)
+        toh_n.goal_peg_out = nengo.Node(vocab.parse(toh.peg(toh.goal)).v)
+        toh_n.target_peg = nengo.Node(vocab.parse(toh.target_peg).v)
+        toh_n.goal_final = nengo.Node(vocab.parse(toh.target[toh.goal]).v)
+        def focus_peg_func(t):
             if toh.focus>=disk_count:
                 return toh.zero
             return vocab.parse(toh.peg(toh.focus)).v
-        focus_peg = nengo.Node(focus_peg_func(toh))
+        toh_n.focus_peg = nengo.Node(focus_peg_func(toh))
     return toh_n
 
 
 class TowerOfHanoi(object):
     def __init__(self, disk_count, D, vocab):
         self.pstc = 0.01
+        # make some matrices as well for faster dot-producting?
         self.pegs = [vocab.parse('A'),vocab.parse('B'),vocab.parse('C')]
         # why would you need to add the NONE vector?
         self.disks = [vocab.parse('D%d'%i) for i in range(disk_count)]+[vocab.parse('NONE')]

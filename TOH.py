@@ -65,21 +65,21 @@ with model:
     # somehow connect buffer inputs to the compare networks?
     # Can I use cortical actions to accomplish this?
 
-    ipdb.set_trace()
-    nengo.Connection(hanoi_node.goal, model.goal, synapse=None)
-    nengo.Connection(hanoi_node.focus, model.focus, synapse=None)
-    nengo.Connection(hanoi_node.goal_peg, model.goal_peg, synapse=None)
-    nengo.Connection(hanoi_node.focus_peg, model.focus_peg, synapse=None)
-    nengo.Connection(hanoi_node.target_peg, model.target_peg, synapse=None)
-    nengo.Connection(hanoi_node.goal_final, model.goal_final, synapse=None)
-    nengo.Connection(hanoi_node.largest, model.largest, synapse=None)
+    #ipdb.set_trace()
+    nengo.Connection(hanoi_node.goal_out, model.goal.state.input, synapse=None)
+    nengo.Connection(hanoi_node.focus_out, model.focus.state.input, synapse=None)
+    nengo.Connection(hanoi_node.goal_peg_out, model.goal_peg.state.input, synapse=None)
+    nengo.Connection(hanoi_node.focus_peg, model.focus_peg.state.input, synapse=None)
+    nengo.Connection(hanoi_node.target_peg, model.target_peg.state.input, synapse=None)
+    nengo.Connection(hanoi_node.goal_final, model.goal_final.state.input, synapse=None)
+    nengo.Connection(hanoi_node.largest, model.largest.state.input, synapse=None)
         
         
-    nengo.Connection(model.set_focus, hanoi_node.focus, synapse=None)
-    nengo.Connection(model.set_goal, hanoi_node.goal, synapse=None)
-    nengo.Connection(model.set_goal_peg, hanoi_node.goal_peg, synapse=None)
-    nengo.Connection(model.move_disk, hanoi_node.move, synapse=None)
-    nengo.Connection(model.move_peg, hanoi_node.move_peg, synapse=None)
+    nengo.Connection(model.set_focus.state.output, hanoi_node.focus_in, synapse=None)
+    nengo.Connection(model.set_goal.state.output, hanoi_node.goal_in, synapse=None)
+    nengo.Connection(model.set_goal_peg.state.output, hanoi_node.goal_peg, synapse=None)
+    nengo.Connection(model.move_disk.state.output, hanoi_node.move, synapse=None)
+    nengo.Connection(model.move_peg.state.output, hanoi_node.move_peg, synapse=None)
 
 # Questions:
 # On the poster, there's a bunch of different dimensions. How are those set?
