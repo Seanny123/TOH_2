@@ -6,7 +6,7 @@ import ipdb
 
 model = spa.SPA()
 
-vocab = spa.Vocabulary(dimensions)
+vocab = spa.Vocabulary(dimensions, randomize=False)
 vocab.parse("NONE")
 
 with model:
@@ -83,6 +83,7 @@ with model:
 
 # Questions:
 # On the poster, there's a bunch of different dimensions. How are those set?
+# Is there a way to just subtely create a new component in nengo_gui? I know you can plug in arbitrary HTML, but does that mean it will trigger on resize and all those other fancy things that a normal component does?
 
 # Aside:
 # How the hell would this map onto Spaun?
