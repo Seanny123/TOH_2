@@ -29,7 +29,8 @@ with model:
     model.focus_goal_peg_comp = spa.Compare(dimensions)
     model.target_focus_peg_comp = spa.Compare(dimensions)
 
-    model.cortical_actions = spa.Actions("goal_target_peg_comp_A = goal_peg", "goal_target_peg_comp_B = target_peg",
+    model.cortical_actions = spa.Actions(
+        "goal_target_peg_comp_A = goal_peg", "goal_target_peg_comp_B = target_peg",
         "focus_goal_comp_A = focus", "focus_goal_comp_B = goal",
         "focus_goal_peg_comp_A = focus_peg", "focus_goal_peg_comp_B = goal_peg",
         "target_focus_peg_comp_A = target_peg", "target_focus_peg_comp_B = focus_peg"
@@ -40,7 +41,7 @@ with model:
     hanoi_node = toh_node_create(disk_count, dimensions, vocab)
     bg_actions = [
         "dot(focus, NONE) --> set_focus=largest, set_goal=largest, set_goal_peg=goal_final",
-        "(dot(focus, D2-D1-D0) + dot(goal, D2) - goal_target_peg_comp)/(2**(1/2.0)) --> set_focus=D1",
+        "( dot(focus, D2-D1-D0) + dot(goal, D2) - goal_target_peg_comp ) / (2**(1/2.0)) --> set_focus=D1",
         "(dot(focus, D2-D1-D0) + dot(goal, D2) + goal_target_peg_comp)*0.7/(3**(1/2.0)) --> set_focus=D1, set_goal=D1, goal_final=set_goal_peg",
         "(dot(focus, D1-D0) + dot(goal, D1) - goal_target_peg_comp)/(2**(1/2.0)) --> set_focus=D0",
         "(dot(focus, D1-D0) + dot(goal, D1) + goal_target_peg_comp)*0.7/(3**(1/2.0)) --> set_focus=D0, set_goal=D0, goal_final=set_goal_peg",
@@ -62,10 +63,6 @@ with model:
     model.bg = spa.BasalGanglia(actions=spa.Actions(*tuple(bg_actions)))
     model.thal = spa.Thalamus(model.bg)
 
-    # somehow connect buffer inputs to the compare networks?
-    # Can I use cortical actions to accomplish this?
-
-    #ipdb.set_trace()
     nengo.Connection(hanoi_node.goal_out, model.goal.state.input, synapse=None)
     nengo.Connection(hanoi_node.focus_out, model.focus.state.input, synapse=None)
     nengo.Connection(hanoi_node.goal_peg_out, model.goal_peg.state.input, synapse=None)
@@ -73,13 +70,41 @@ with model:
     nengo.Connection(hanoi_node.target_peg, model.target_peg.state.input, synapse=None)
     nengo.Connection(hanoi_node.goal_final, model.goal_final.state.input, synapse=None)
     nengo.Connection(hanoi_node.largest, model.largest.state.input, synapse=None)
-        
-        
+
     nengo.Connection(model.set_focus.state.output, hanoi_node.focus_in, synapse=None)
     nengo.Connection(model.set_goal.state.output, hanoi_node.goal_in, synapse=None)
     nengo.Connection(model.set_goal_peg.state.output, hanoi_node.goal_peg, synapse=None)
     nengo.Connection(model.move_disk.state.output, hanoi_node.move, synapse=None)
     nengo.Connection(model.move_peg.state.output, hanoi_node.move_peg, synapse=None)
+
+    ##### Node for visualization #####
+    def viz_func(t, x):
+        focus_peg = [0]*3
+        focus_peg[int(x[0])] = 255
+
+        goal_disc = [0]*3
+        goal_disc[int(x[1])] = 3
+        focus_disc = [0]*3
+        focus_disc[int(x[2])] = 3
+        # UHHHHH... What location is that anyways?????
+        location = x[3:6]
+        viz_func._nengo_html_ = '''
+        <svg width="400" height="110">
+          <rect x="50" y="0" width="10" height="600" style="fill:rgb(0,0,%i);" />
+          <rect x="150" y="0" width="10" height="600" style="fill:rgb(0,0,%i);" />
+          <rect x="250" y="0" width="10" height="600" style="fill:rgb(0,0,%i);" />
+
+          <rect x="%i" y="40" width="40" height="20" style="fill:rgb(%i,0,%i);" />
+          <rect x="%i" y="70" width="70" height="15" style="fill:rgb(%i,0,%i);" />
+          <rect x="%i" y="100" width="100" height="10" style="fill:rgb(%i,0,%i);" />
+        </svg>
+        ''' %(focus_peg[0], focus_peg[1], focus_peg[2], (35+location[0]*100), focus_disc[0], goal_disc[0], (15+location[1]*100), focus_disc[1], goal_disc[1], (location[2]*100), focus_disc[2], goal_disc[2])
+
+    viz_node = nengo.Node(viz_func, size_in=7)
+    nengo.Connection(hanoi_node.focus_viz, viz_node[0])
+    nengo.Connection(hanoi_node.goal_viz, viz_node[1])
+    nengo.Connection(hanoi_node.peg_viz, viz_node[2])
+    nengo.Connection(hanoi_node.pos_viz, viz_node[3:6])
 
 # Questions:
 # On the poster, there's a bunch of different dimensions. How are those set?

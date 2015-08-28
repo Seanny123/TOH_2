@@ -56,7 +56,6 @@ target/
 .DS_Store
 
 # nengo_viz specific
-*.py.cfg
 .ipynb_checkpoints
 
 # Vagrant
