@@ -1,5 +1,8 @@
+import math
+
 import nengo
 import nengo.spa as spa
+
 from constants import *
 from toh_node import toh_node_create
 import ipdb
@@ -8,6 +11,7 @@ model = spa.SPA()
 
 vocab = spa.Vocabulary(dimensions, randomize=False)
 vocab.parse("NONE")
+# If there's no randomization, how the hell can there be any similarity?
 
 with model:
     model.goal = spa.Buffer(dimensions)
@@ -54,6 +58,7 @@ with model:
         ]
 
     if(disk_count > 3):
+        print("appending actions");
         bg_actions.append(
             "(dot(focus, D2) + dot(goal, -D2) - target_focus_peg_comp - goal_target_peg_comp - focus_goal_peg_comp)*1.3 --> set_focus=D1",
             "(dot(focus, D3-D2-D1-D0) + dot(goal, D3) - goal_target_peg_comp)/(2**(1/2.0)) --> set_focus=D2",
@@ -80,13 +85,15 @@ with model:
     ##### Node for visualization #####
     def viz_func(t, x):
         focus_peg = [0]*3
-        focus_peg[int(x[0])] = 255
-
+        focus_peg[int(math.ceil(x[0]))] = 255
+        #print("focus_peg: %s" %focus_peg)
         goal_disc = [0]*3
-        goal_disc[int(x[1])] = 3
+        goal_disc[int(math.ceil(x[1]))] = 255
+        #print("goal_disc: %s" %goal_disc)
         focus_disc = [0]*3
-        focus_disc[int(x[2])] = 3
-        # UHHHHH... What location is that anyways?????
+        focus_disc[int(math.ceil(x[2]))] = 255
+        #print("focus_disc: %s" %focus_disc)
+
         location = x[3:6]
         viz_func._nengo_html_ = '''
         <svg width="400" height="110">

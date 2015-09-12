@@ -13,7 +13,6 @@ def toh_node_create(disk_count, D, vocab):
 
         # input nodes
         def focus_in_func(t, x):
-            # vectorize and abstract to function
             tmp_disks = get_similarity_array(x, toh.disks)
             toh.focus = tmp_disks.index(np.max(tmp_disks))
 
@@ -29,7 +28,7 @@ def toh_node_create(disk_count, D, vocab):
         def goal_in_func(t, x):
             disks = get_similarity_array(x, toh.disks)
             pegs = toh.goal_peg_data
-            if np.max(pegs)>threshold and np.max(disks)>threshold:
+            if np.max(pegs) > threshold and np.max(disks) > threshold:
                 toh.goal = disks.index(np.max(disks))
                 # repeated twice, uncertain of function
                 toh.target_peg = 'ABC'[pegs.index(np.max(pegs))]
@@ -46,8 +45,15 @@ def toh_node_create(disk_count, D, vocab):
         def move_func(t, x):
             disks = get_similarity_array(x, toh.disks)
             pegs = toh.move_peg_data
-            if np.max(pegs)>threshold and np.max(disks)>threshold:
-                disk = disks.index(np.max(disks))
+            disk = disks.index(np.max(disks))
+            # SEEMS TO BE ASKING IF IT CAN MOVE TO 'NONE' THAT'S A PROBLEM
+            # I'm pretty tempted to tell it that if it tries to move the 
+            # 'None' disk that it should just wait, because the focus should
+            # change eventually
+            if(np.max(pegs) > threshold and np.max(disks) > threshold
+               and disk < toh.largest):
+
+
                 peg = 'ABC'[pegs.index(np.max(pegs))]
                 if peg != toh.peg(disk):
                     if toh.can_move(disk,peg):
@@ -75,9 +81,9 @@ def toh_node_create(disk_count, D, vocab):
 
         #### Visualization nodes ####
 
-        toh_n.focus_viz = nengo.Node(toh.focus, size_out=1)
-        toh_n.goal_viz = nengo.Node(toh.goal, size_out=1)
-        toh_n.peg_viz = nengo.Node(toh.location_dict[toh.target_peg], size_out=1)
+        toh_n.focus_viz = nengo.Node(lambda t: toh.focus, size_out=1, label="focus disk")
+        toh_n.goal_viz = nengo.Node(lambda t: toh.goal, size_out=1, label="goal disk")
+        toh_n.peg_viz = nengo.Node(lambda t: toh.location_dict[toh.target_peg], size_out=1, label="goal peg")
 
 
         def pos_viz_func(t):
@@ -98,7 +104,6 @@ class TowerOfHanoi(object):
         self.pstc = 0.01
         # make some matrices as well for faster dot-producting?
         self.pegs = [vocab.parse('A'),vocab.parse('B'),vocab.parse('C')]
-        # why would you need to add the NONE vector?
         self.disks = [vocab.parse('D%d'%i) for i in range(disk_count)]+[vocab.parse('NONE')]
         self.reset()
         self.location_dict = {'A':0, 'B':1, 'C':2}
@@ -116,14 +121,17 @@ class TowerOfHanoi(object):
         self.move_peg_data = [0]*disk_count
         self.goal_peg_data = [0]*disk_count
 
-    def move(self,disk,peg):
+    def move(self, disk, peg):
         assert self.can_move(disk,peg)
         self.location[disk] = peg
         
-    def peg(self,disk):
-        return self.location[disk]    
+    def peg(self, disk):
+        try:
+            return self.location[disk]
+        except IndexError:
+            ipdb.set_trace()
         
-    def can_move(self,disk,peg):
+    def can_move(self, disk, peg):
         assert peg in 'ABC'
         pegs = [self.peg(disk),peg]
         for i in range(disk):
