@@ -85,13 +85,16 @@ with model:
     ##### Node for visualization #####
     def viz_func(t, x):
         focus_peg = [0]*3
-        focus_peg[int(math.ceil(x[0]))] = 255
+        if x[0] < 3:
+            focus_peg[int(x[0])] = 255
         #print("focus_peg: %s" %focus_peg)
         goal_disc = [0]*3
-        goal_disc[int(math.ceil(x[1]))] = 255
+        if x[1] < 3:
+            goal_disc[int(x[1])] = 255
         #print("goal_disc: %s" %goal_disc)
         focus_disc = [0]*3
-        focus_disc[int(math.ceil(x[2]))] = 255
+        if x[1] < 3:
+            focus_disc[int(x[2])] = 255
         #print("focus_disc: %s" %focus_disc)
 
         location = x[3:6]
@@ -115,10 +118,8 @@ with model:
 
 # Questions:
 # On the poster, there's a bunch of different dimensions. How are those set?
-# Is there a way to just subtely create a new component in nengo_gui? I know you can plug in arbitrary HTML, but does that mean it will trigger on resize and all those other fancy things that a normal component does?
 
 # Aside:
 # How the hell would this map onto Spaun?
 # Who figured out these rules and how did they do it?
-# How stupid would it be for the Thalamus to highlight which connections it's activating?
 # How does Spaun deal with a bunch of different dimensions?

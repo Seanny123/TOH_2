@@ -65,12 +65,14 @@ def toh_node_create(disk_count, D, vocab):
         toh_n.move = nengo.Node(move_func, size_in=D)
 
 
-        toh_n.largest = nengo.Node(toh.disks[toh.largest].v)
-        toh_n.goal_out = nengo.Node(toh.disks[toh.goal].v)
-        toh_n.focus_out = nengo.Node(toh.disks[toh.focus].v)
-        toh_n.goal_peg_out = nengo.Node(vocab.parse(toh.peg(toh.goal)).v)
-        toh_n.target_peg = nengo.Node(vocab.parse(toh.target_peg).v)
-        toh_n.goal_final = nengo.Node(vocab.parse(toh.target[toh.goal]).v)
+        toh_n.largest = nengo.Node(lambda t: toh.disks[toh.largest].v)
+        toh_n.goal_out = nengo.Node(lambda t: toh.disks[toh.goal].v)
+        toh_n.focus_out = nengo.Node(lambda t: toh.disks[toh.focus].v)
+        # HOW THE HELL IS THE GOAL EVEN BEING SET TO NONE
+        toh_n.goal_peg_out = nengo.Node(lambda t: vocab.parse(toh.peg(toh.goal)).v)
+        toh_n.target_peg = nengo.Node(lambda t: vocab.parse(toh.target_peg).v)
+        # WTF IS THIS
+        toh_n.goal_final = nengo.Node(lambda t: vocab.parse(toh.target[toh.goal]).v)
 
         def focus_peg_func(t):
             if toh.focus>=disk_count:
