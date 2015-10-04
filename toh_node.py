@@ -11,7 +11,7 @@ def toh_node_create(disk_count, D, vocab):
     with nengo.Network(label="Tower of Hanoi node") as toh_n:
         toh = TowerOfHanoi(disk_count, D, vocab)
 
-        # input nodes
+        #### input nodes ####
         def focus_in_func(t, x):
             tmp_disks = get_similarity_array(x, toh.disks)
             toh.focus = tmp_disks.index(np.max(tmp_disks))
@@ -26,56 +26,60 @@ def toh_node_create(disk_count, D, vocab):
 
 
         def goal_in_func(t, x):
+            """Sets the goals for both the pegs and the disk"""
             disks = get_similarity_array(x, toh.disks)
             pegs = toh.goal_peg_data
             if np.max(pegs) > threshold and np.max(disks) > threshold:
                 toh.goal = disks.index(np.max(disks))
-                # repeated twice, uncertain of function
                 toh.target_peg = 'ABC'[pegs.index(np.max(pegs))]
 
         toh_n.goal_in = nengo.Node(goal_in_func, size_in=D)
 
+        toh_n.motor = nengo.Network(label="Motor Cortex")
 
-        def move_peg_func(t, x):
-            toh.move_peg_data=get_similarity_array(x, toh.pegs)
+        with toh_n.motor as motor:
+            def move_peg_func(t, x):
+                toh.move_peg_data = get_similarity_array(x, toh.pegs)
 
-        toh_n.move_peg = nengo.Node(move_peg_func, size_in=D)
-
-
-        def move_func(t, x):
-            disks = get_similarity_array(x, toh.disks)
-            pegs = toh.move_peg_data
-            disk = disks.index(np.max(disks))
-            # SEEMS TO BE ASKING IF IT CAN MOVE TO 'NONE' THAT'S A PROBLEM
-            # I'm pretty tempted to tell it that if it tries to move the 
-            # 'None' disk that it should just wait, because the focus should
-            # change eventually
-            if(np.max(pegs) > threshold and np.max(disks) > threshold
-               and disk < toh.largest):
+            motor.move_peg = nengo.Node(move_peg_func, size_in=D)
 
 
-                peg = 'ABC'[pegs.index(np.max(pegs))]
-                if peg != toh.peg(disk):
-                    if toh.can_move(disk,peg):
-                        toh.move(disk,peg)
-                        print 'Moving D%d to %s'%(disk,peg)
-                    else:    
-                        print 'Cannot move D%d to %s'%(disk,peg)
-
-        toh_n.move = nengo.Node(move_func, size_in=D)
+            def move_func(t, x):
+                disks = get_similarity_array(x, toh.disks)
+                pegs = toh.move_peg_data
+                disk = disks.index(np.max(disks))
+                if(np.max(pegs) > threshold and np.max(disks) > threshold):
 
 
+                    peg = 'ABC'[pegs.index(np.max(pegs))]
+                    if peg != toh.peg(disk):
+                        if toh.can_move(disk,peg):
+                            toh.move(disk,peg)
+                            print 'Moving D%d to %s'%(disk,peg)
+                        else:    
+                            print 'Cannot move D%d to %s'%(disk,peg)
+
+            motor.move = nengo.Node(move_func, size_in=D)
+
+
+        #### output nodes ####
         toh_n.largest = nengo.Node(lambda t: toh.disks[toh.largest].v)
-        toh_n.goal_out = nengo.Node(lambda t: toh.disks[toh.goal].v)
         toh_n.focus_out = nengo.Node(lambda t: toh.disks[toh.focus].v)
         # HOW THE HELL IS THE GOAL EVEN BEING SET TO NONE
         toh_n.goal_peg_out = nengo.Node(lambda t: vocab.parse(toh.peg(toh.goal)).v)
+
         toh_n.target_peg = nengo.Node(lambda t: vocab.parse(toh.target_peg).v)
-        # WTF IS THIS
-        toh_n.goal_final = nengo.Node(lambda t: vocab.parse(toh.target[toh.goal]).v)
+
+
+        # This just says where all the disks are supposed to end up. In this case, at the last peg
+        # Put this into the visual cortex, then check the rules are flowing correctly
+        toh_n.vis = nengo.Network(label="Visual Cortex")
+
+        toh_n.goal_out = nengo.Node(lambda t: toh.disks[toh.goal].v)
+        toh_n.goal_peg_final = nengo.Node(lambda t: vocab.parse(toh.target[toh.goal]).v)
 
         def focus_peg_func(t):
-            if toh.focus>=disk_count:
+            if toh.focus >= disk_count:
                 return toh.zero
             return vocab.parse(toh.peg(toh.focus)).v
 
@@ -105,7 +109,7 @@ class TowerOfHanoi(object):
     def __init__(self, disk_count, D, vocab):
         self.pstc = 0.01
         # make some matrices as well for faster dot-producting?
-        self.pegs = [vocab.parse('A'),vocab.parse('B'),vocab.parse('C')]
+        self.pegs = [vocab.parse('A'), vocab.parse('B'), vocab.parse('C')]
         self.disks = [vocab.parse('D%d'%i) for i in range(disk_count)]+[vocab.parse('NONE')]
         self.reset()
         self.location_dict = {'A':0, 'B':1, 'C':2}
@@ -114,14 +118,15 @@ class TowerOfHanoi(object):
 
     def reset(self,randomize=True):
         self.location = ['A']*disk_count
-        self.target = ['C']*disk_count
         #self.location=['A','C','C']
-        self.focus = len(self.disks)-1
-        self.largest = disk_count-1
+        self.focus = len(self.disks) - 1
+        self.largest = disk_count - 1
         self.goal = 2
         self.target_peg = 'C'
-        self.move_peg_data = [0]*disk_count
-        self.goal_peg_data = [0]*disk_count
+        self.move_peg_data = [0] * disk_count
+        self.goal_peg_data = [0] * disk_count
+        # constant
+        self.target = ['C'] * disk_count
 
     def move(self, disk, peg):
         assert self.can_move(disk,peg)

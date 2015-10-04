@@ -11,28 +11,43 @@ model = spa.SPA()
 
 vocab = spa.Vocabulary(dimensions, randomize=False)
 vocab.parse("NONE")
-# If there's no randomization, how the hell can there be any similarity?
+
+# From the paper
+# ATTEND = focus
+
+# Note, D0 is the smalles disk, D2+ is the largest
+# Because in this model there is no memory, so it "has to rebuild it's plans every time"
+# The whole process should take around 30 actions
+# TODO: Set set_focus to none for the first 0.02 seconds with a pass-through-ish node
+# TODO: Simulate all State objects directly and with one neuron
 
 with model:
-    model.goal = spa.Buffer(dimensions)
-    model.focus = spa.Buffer(dimensions)
-    model.goal_peg = spa.Buffer(dimensions)
-    model.focus_peg = spa.Buffer(dimensions)
-    model.target_peg = spa.Buffer(dimensions)
-    model.goal_final = spa.Buffer(dimensions)
-    model.largest = spa.Buffer(dimensions)
+    # cortical states
+    model.goal = spa.State(dimensions)
+    model.focus = spa.State(dimensions, feedback=1)
+    model.focus_peg = spa.State(dimensions)
+    model.target_peg = spa.State(dimensions)
 
-    model.set_focus = spa.Buffer(dimensions)
-    model.set_goal = spa.Buffer(dimensions)
-    model.set_goal_peg = spa.Buffer(dimensions)
-    model.move_disk = spa.Buffer(dimensions)
-    model.move_peg = spa.Buffer(dimensions)
+    # constant states from the node
+    model.largest = spa.State(dimensions)
+    # gets changed based off of which disk is being considered
+    model.goal_peg_final = spa.State(dimensions)
+
+    # input to cortical states
+    model.set_focus = spa.State(dimensions)
+    model.set_goal = spa.State(dimensions)
+    model.set_goal_peg = spa.State(dimensions)
+
+    # action states
+    model.move_disk = spa.State(dimensions) # what to move
+    model.move_peg = spa.State(dimensions)  # where to move it
 
     model.goal_target_peg_comp = spa.Compare(dimensions)
     model.focus_goal_comp = spa.Compare(dimensions)
     model.focus_goal_peg_comp = spa.Compare(dimensions)
     model.target_focus_peg_comp = spa.Compare(dimensions)
 
+    # Connect the inputs to the the compare networks
     model.cortical_actions = spa.Actions(
         "goal_target_peg_comp_A = goal_peg", "goal_target_peg_comp_B = target_peg",
         "focus_goal_comp_A = focus", "focus_goal_comp_B = goal",
@@ -42,45 +57,63 @@ with model:
 
     model.cortical = spa.Cortical(model.cortical_actions)
 
+    # target_peg is temporary, goal is final except for goal disk which is current
+    # D0 is the smallest disk
     hanoi_node = toh_node_create(disk_count, dimensions, vocab)
-    bg_actions = [
-        "dot(focus, NONE) --> set_focus=largest, set_goal=largest, set_goal_peg=goal_final",
-        "( dot(focus, D2-D1-D0) + dot(goal, D2) - goal_target_peg_comp ) / (2**(1/2.0)) --> set_focus=D1",
-        "(dot(focus, D2-D1-D0) + dot(goal, D2) + goal_target_peg_comp)*0.7/(3**(1/2.0)) --> set_focus=D1, set_goal=D1, goal_final=set_goal_peg",
-        "(dot(focus, D1-D0) + dot(goal, D1) - goal_target_peg_comp)/(2**(1/2.0)) --> set_focus=D0",
-        "(dot(focus, D1-D0) + dot(goal, D1) + goal_target_peg_comp)*0.7/(3**(1/2.0)) --> set_focus=D0, set_goal=D0, goal_final=set_goal_peg",
-        "(dot(focus, D0) + goal_target_peg_comp)*0.7/(2**(1/2.0)) --> set_focus=NONE",
-        "(dot(focus, D0) + dot(goal, D0) - goal_target_peg_comp)*0.9/(3**(1/2.0)) --> set_focus=NONE, move_disk=D0, goal_final=set_goal_peg",
-        "(-focus_goal_comp + focus_goal_peg_comp - target_focus_peg_comp)*1.3 --> focus=set_goal, set_goal_peg=C+B+A, target_peg=-goal_peg, focus_peg=-set_goal_peg",
-        "(-focus_goal_comp + focus_goal_peg_comp - target_focus_peg_comp)*1.3 --> focus=set_goal, set_goal_peg=C+B+A, target_peg=-goal_peg, goal_peg=-set_goal_peg",
-        "dot(focus, D0) + dot(goal, -D0) - 2*target_focus_peg_comp - 2*goal_target_peg_comp - 2*focus_goal_peg_comp --> goal=move_disk, target_peg=move_peg",
-        "(dot(focus, D1) + dot(goal, -D1) - target_focus_peg_comp - goal_target_peg_comp - focus_goal_peg_comp)*1.3 --> set_focus=D0"
-        ]
+    bg_actions = spa.Actions(
+        # If nothing is being focused on, focus on the largest
+        start = "dot(focus, NONE) --> set_focus=largest, set_goal=largest, set_goal_peg=goal_peg_final",
+        # If we're focused on D2 and D2 is our goal, but our goals and target don't match (we want to move it), focus on D1 instead
+        look_not_done_1 = "( dot(focus, D2-D1-D0) + dot(goal, D2) - goal_target_peg_comp ) / (2**(1/2.0)) --> set_focus=D1",
+        # If we're focused on D2 and D2 is our goal, but it's already at it's temporary resting place to keep it out of the way, focus on D1 instead and try to get it to the goal
+        look_done_1 = "(dot(focus, D2-D1-D0) + dot(goal, D2) + goal_target_peg_comp)*0.7/(3**(1/2.0)) --> set_focus=D1, set_goal=D1, set_goal_peg=goal_peg_final",
+        # If we're focused on D1 and D1 is our goal, but our goals and target don't match (we want to move it), focus on D0 instead
+        look_not_done_2 = "(dot(focus, D1-D0) + dot(goal, D1) - goal_target_peg_comp)/(2**(1/2.0)) --> set_focus=D0",
+        # If we're focused on D1 and D1 is our goal, but it's already where we want it, focus on D0 instead and try to get it to the goal
+        look_done_2 = "(dot(focus, D1-D0) + dot(goal, D1) + goal_target_peg_comp)*0.7/(3**(1/2.0)) --> set_focus=D0, set_goal=D0, set_goal_peg=goal_peg_final",
+        # When we've moved the smallest disk, go and look at the largest again
+        special_D0 = "(dot(focus, D0) + goal_target_peg_comp)*0.7/(2**(1/2.0)) --> set_focus=NONE",
+        # If D0 isn't in the right place, then move it. It's D0. It's the smallest. It can go anywhere.
+        move_D0 = "(dot(focus, D0) + dot(goal, D0) - goal_target_peg_comp)*0.9/(3**(1/2.0)) --> set_focus=NONE, move_disk=D0, set_goal_peg=goal_peg_final",
+        ## InTheWay1 and FindFree1
+        # trying to move something, but smaller disk is on the target peg
+        # WTF how are conflicts being represented in this rule?
+        find_free_1 = "(-focus_goal_comp + focus_goal_peg_comp - target_focus_peg_comp)*1.3 --> set_goal=focus, set_goal_peg=C+B+A-focus_peg-target_peg",
+        ## InTheWay2 and FindFree2
+        find_free_2 = "(-focus_goal_comp - focus_goal_peg_comp + target_focus_peg_comp)*1.3 --> set_goal=focus, set_goal_peg=C+B+A-goal_peg-target_peg",
+        # If we're focused smallest disk while trying to move our goal disk and we haven't found anything in the way, then move the goal disk
+        # WTF is with all the negatives? CANNOT PARSE
+        move_goal_1 = "dot(focus, D0) + dot(goal, -D0) - 2*target_focus_peg_comp - 2*goal_target_peg_comp - 2*focus_goal_peg_comp --> move_disk=goal, move_peg=target_peg",
+        # If we're focused smallest disk while trying to move our goal disk and we haven't found anything in the way, then move the goal disk
+        move_goal_2 = "(dot(focus, D1) + dot(goal, -D1) - target_focus_peg_comp - goal_target_peg_comp - focus_goal_peg_comp)*1.3 --> set_focus=D0"
+        )
 
     if(disk_count > 3):
         print("appending actions");
-        bg_actions.append(
-            "(dot(focus, D2) + dot(goal, -D2) - target_focus_peg_comp - goal_target_peg_comp - focus_goal_peg_comp)*1.3 --> set_focus=D1",
-            "(dot(focus, D3-D2-D1-D0) + dot(goal, D3) - goal_target_peg_comp)/(2**(1/2.0)) --> set_focus=D2",
-            "(dot(focus, D3-D2-D1-D0) + dot(goal, D3) + goal_target_peg_comp)*0.7/(3**(1/2.0)) --> set_focus=D2, set_goal=D2, goal_final=set_goal_peg"
+        bg_actions.add(
+            move_goal_3 = "(dot(focus, D2) + dot(goal, -D2) - target_focus_peg_comp - goal_target_peg_comp - focus_goal_peg_comp)*1.3 --> set_focus=D1",
+            look_not_done_4 = "(dot(focus, D3-D2-D1-D0) + dot(goal, D3) - goal_target_peg_comp)/(2**(1/2.0)) --> set_focus=D2",
+            look_done_4 = "(dot(focus, D3-D2-D1-D0) + dot(goal, D3) + goal_target_peg_comp)*0.7/(3**(1/2.0)) --> set_focus=D2, set_goal=D2, set_goal_peg=goal_peg_final"
             )
 
     model.bg = spa.BasalGanglia(actions=spa.Actions(*tuple(bg_actions)))
     model.thal = spa.Thalamus(model.bg)
 
-    nengo.Connection(hanoi_node.goal_out, model.goal.state.input, synapse=None)
-    nengo.Connection(hanoi_node.focus_out, model.focus.state.input, synapse=None)
-    nengo.Connection(hanoi_node.goal_peg_out, model.goal_peg.state.input, synapse=None)
-    nengo.Connection(hanoi_node.focus_peg, model.focus_peg.state.input, synapse=None)
-    nengo.Connection(hanoi_node.target_peg, model.target_peg.state.input, synapse=None)
-    nengo.Connection(hanoi_node.goal_final, model.goal_final.state.input, synapse=None)
-    nengo.Connection(hanoi_node.largest, model.largest.state.input, synapse=None)
+    # input to model output from node connections
+    nengo.Connection(hanoi_node.goal_out, model.goal.input, synapse=None)
+    nengo.Connection(hanoi_node.focus_out, model.focus.input, synapse=None)
+    nengo.Connection(hanoi_node.goal_peg_out, model.goal_peg.input, synapse=None)
+    nengo.Connection(hanoi_node.focus_peg, model.focus_peg.input, synapse=None)
+    nengo.Connection(hanoi_node.target_peg, model.target_peg.input, synapse=None)
+    nengo.Connection(hanoi_node.goal_peg_final, model.goal_peg_final.input, synapse=None)
+    nengo.Connection(hanoi_node.largest, model.largest.input, synapse=None)
 
-    nengo.Connection(model.set_focus.state.output, hanoi_node.focus_in, synapse=None)
-    nengo.Connection(model.set_goal.state.output, hanoi_node.goal_in, synapse=None)
-    nengo.Connection(model.set_goal_peg.state.output, hanoi_node.goal_peg, synapse=None)
-    nengo.Connection(model.move_disk.state.output, hanoi_node.move, synapse=None)
-    nengo.Connection(model.move_peg.state.output, hanoi_node.move_peg, synapse=None)
+    # output from model input to node connections
+    nengo.Connection(model.set_focus.output, hanoi_node.focus_in, synapse=None)
+    nengo.Connection(model.set_goal.output, hanoi_node.goal_in, synapse=None)
+    nengo.Connection(model.set_goal_peg.output, hanoi_node.goal_peg, synapse=None)
+    nengo.Connection(model.move_disk.output, hanoi_node.motor.move, synapse=None)
+    nengo.Connection(model.move_peg.output, hanoi_node.motor.move_peg, synapse=None)
 
     ##### Node for visualization #####
     def viz_func(t, x):
