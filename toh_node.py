@@ -75,15 +75,16 @@ def toh_node_create(disk_count, D, vocab):
         # Put this into the visual cortex, then check the rules are flowing correctly
         toh_n.vis = nengo.Network(label="Visual Cortex")
 
-        toh_n.goal_out = nengo.Node(lambda t: toh.disks[toh.goal].v)
-        toh_n.goal_peg_final = nengo.Node(lambda t: vocab.parse(toh.target[toh.goal]).v)
+        with toh_n.vis as vis:
+            vis.goal_out = nengo.Node(lambda t: toh.disks[toh.goal].v)
+            vis.goal_peg_final = nengo.Node(lambda t: vocab.parse(toh.target[toh.goal]).v)
 
-        def focus_peg_func(t):
-            if toh.focus >= disk_count:
-                return toh.zero
-            return vocab.parse(toh.peg(toh.focus)).v
+            def focus_peg_func(t):
+                if toh.focus >= disk_count:
+                    return toh.zero
+                return vocab.parse(toh.peg(toh.focus)).v
 
-        toh_n.focus_peg = nengo.Node(focus_peg_func(toh))
+            vis.focus_peg = nengo.Node(focus_peg_func(toh))
 
         #### Visualization nodes ####
 

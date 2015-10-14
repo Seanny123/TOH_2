@@ -1,5 +1,3 @@
-import math
-
 import nengo
 import nengo.spa as spa
 
@@ -21,31 +19,41 @@ vocab.parse("NONE")
 # TODO: Set set_focus to none for the first 0.02 seconds with a pass-through-ish node
 # TODO: Simulate all State objects directly and with one neuron
 
+ens_conf = nengo.Config(nengo.Ensemble)
+ens_conf[nengo.Ensemble].neuron_type = nengo.neurons.Direct()
+
+conn_conf = nengo.Config(nengo.Connection)
+conn_conf[nengo.Connection].synapse = None
+
 with model:
-    # cortical states
-    model.goal = spa.State(dimensions)
-    model.focus = spa.State(dimensions, feedback=1)
-    model.focus_peg = spa.State(dimensions)
-    model.target_peg = spa.State(dimensions)
+    ## cortical states
+    with ens_conf:
+        model.goal = spa.State(dimensions, neurons_per_dimension=1)
+        model.goal_peg = spa.State(dimensions, neurons_per_dimension=1)
+        model.focus = spa.State(dimensions, neurons_per_dimension=1, feedback=1)
+        model.focus_peg = spa.State(dimensions, neurons_per_dimension=1)
+        model.target_peg = spa.State(dimensions, neurons_per_dimension=1)
 
-    # constant states from the node
-    model.largest = spa.State(dimensions)
-    # gets changed based off of which disk is being considered
-    model.goal_peg_final = spa.State(dimensions)
+        # constant states from the node
+        model.largest = spa.State(dimensions, neurons_per_dimension=1)
+        # gets changed based off of which disk is being considered
+        model.goal_peg_final = spa.State(dimensions, neurons_per_dimension=1)
 
-    # input to cortical states
-    model.set_focus = spa.State(dimensions)
-    model.set_goal = spa.State(dimensions)
-    model.set_goal_peg = spa.State(dimensions)
+        # input to cortical states
+        model.set_focus = spa.State(dimensions, neurons_per_dimension=1)
+        model.set_goal = spa.State(dimensions, neurons_per_dimension=1)
+        model.set_goal_peg = spa.State(dimensions, neurons_per_dimension=1)
 
-    # action states
-    model.move_disk = spa.State(dimensions) # what to move
-    model.move_peg = spa.State(dimensions)  # where to move it
+        ## action states
+        # what to move
+        model.move_disk = spa.State(dimensions, neurons_per_dimension=1)
+        # where to move it
+        model.move_peg = spa.State(dimensions, neurons_per_dimension=1)
 
-    model.goal_target_peg_comp = spa.Compare(dimensions)
-    model.focus_goal_comp = spa.Compare(dimensions)
-    model.focus_goal_peg_comp = spa.Compare(dimensions)
-    model.target_focus_peg_comp = spa.Compare(dimensions)
+        model.goal_target_peg_comp = spa.Compare(dimensions, neurons_per_multiply=1)
+        model.focus_goal_comp = spa.Compare(dimensions, neurons_per_multiply=1)
+        model.focus_goal_peg_comp = spa.Compare(dimensions, neurons_per_multiply=1)
+        model.target_focus_peg_comp = spa.Compare(dimensions, neurons_per_multiply=1)
 
     # Connect the inputs to the the compare networks
     model.cortical_actions = spa.Actions(
@@ -96,24 +104,25 @@ with model:
             look_done_4 = "(dot(focus, D3-D2-D1-D0) + dot(goal, D3) + goal_target_peg_comp)*0.7/(3**(1/2.0)) --> set_focus=D2, set_goal=D2, set_goal_peg=goal_peg_final"
             )
 
-    model.bg = spa.BasalGanglia(actions=spa.Actions(*tuple(bg_actions)))
+    model.bg = spa.BasalGanglia(actions=bg_actions)
     model.thal = spa.Thalamus(model.bg)
 
     # input to model output from node connections
-    nengo.Connection(hanoi_node.goal_out, model.goal.input, synapse=None)
-    nengo.Connection(hanoi_node.focus_out, model.focus.input, synapse=None)
-    nengo.Connection(hanoi_node.goal_peg_out, model.goal_peg.input, synapse=None)
-    nengo.Connection(hanoi_node.focus_peg, model.focus_peg.input, synapse=None)
-    nengo.Connection(hanoi_node.target_peg, model.target_peg.input, synapse=None)
-    nengo.Connection(hanoi_node.goal_peg_final, model.goal_peg_final.input, synapse=None)
-    nengo.Connection(hanoi_node.largest, model.largest.input, synapse=None)
+    with conn_conf:
+        nengo.Connection(hanoi_node.vis.goal_out, model.goal.input)
+        nengo.Connection(hanoi_node.focus_out, model.focus.input)
+        nengo.Connection(hanoi_node.goal_peg_out, model.goal_peg.input)
+        nengo.Connection(hanoi_node.vis.focus_peg, model.focus_peg.input)
+        nengo.Connection(hanoi_node.target_peg, model.target_peg.input)
+        nengo.Connection(hanoi_node.vis.goal_peg_final, model.goal_peg_final.input)
+        nengo.Connection(hanoi_node.largest, model.largest.input)
 
-    # output from model input to node connections
-    nengo.Connection(model.set_focus.output, hanoi_node.focus_in, synapse=None)
-    nengo.Connection(model.set_goal.output, hanoi_node.goal_in, synapse=None)
-    nengo.Connection(model.set_goal_peg.output, hanoi_node.goal_peg, synapse=None)
-    nengo.Connection(model.move_disk.output, hanoi_node.motor.move, synapse=None)
-    nengo.Connection(model.move_peg.output, hanoi_node.motor.move_peg, synapse=None)
+        # output from model input to node connections
+        nengo.Connection(model.set_focus.output, hanoi_node.focus_in)
+        nengo.Connection(model.set_goal.output, hanoi_node.goal_in)
+        nengo.Connection(model.set_goal_peg.output, hanoi_node.goal_peg)
+        nengo.Connection(model.move_disk.output, hanoi_node.motor.move)
+        nengo.Connection(model.move_peg.output, hanoi_node.motor.move_peg)
 
     ##### Node for visualization #####
     def viz_func(t, x):
@@ -148,9 +157,6 @@ with model:
     nengo.Connection(hanoi_node.goal_viz, viz_node[1])
     nengo.Connection(hanoi_node.peg_viz, viz_node[2])
     nengo.Connection(hanoi_node.pos_viz, viz_node[3:6])
-
-# Questions:
-# On the poster, there's a bunch of different dimensions. How are those set?
 
 # Aside:
 # How the hell would this map onto Spaun?
