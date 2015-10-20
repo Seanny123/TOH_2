@@ -5,10 +5,10 @@ from constants import *
 from toh_node import toh_node_create
 import ipdb
 
-model = spa.SPA()
-
 vocab = spa.Vocabulary(dimensions, randomize=False)
 vocab.parse("NONE")
+
+model = spa.SPA(seed=0, vocabs=[vocab])
 
 # From the paper
 # ATTEND = focus
@@ -30,7 +30,8 @@ with model:
     with ens_conf:
         model.goal = spa.State(dimensions, neurons_per_dimension=1)
         model.goal_peg = spa.State(dimensions, neurons_per_dimension=1)
-        model.focus = spa.State(dimensions, neurons_per_dimension=1, feedback=1)
+        # Maybe feedback is a bad idea
+        model.focus = spa.State(dimensions, neurons_per_dimension=1, feedback=1, feedback_synapse=0.1)
         model.focus_peg = spa.State(dimensions, neurons_per_dimension=1)
         model.target_peg = spa.State(dimensions, neurons_per_dimension=1)
 
@@ -153,10 +154,11 @@ with model:
         ''' %(focus_peg[0], focus_peg[1], focus_peg[2], (35+location[0]*100), focus_disc[0], goal_disc[0], (15+location[1]*100), focus_disc[1], goal_disc[1], (location[2]*100), focus_disc[2], goal_disc[2])
 
     viz_node = nengo.Node(viz_func, size_in=7)
-    nengo.Connection(hanoi_node.focus_viz, viz_node[0])
-    nengo.Connection(hanoi_node.goal_viz, viz_node[1])
-    nengo.Connection(hanoi_node.peg_viz, viz_node[2])
-    nengo.Connection(hanoi_node.pos_viz, viz_node[3:6])
+    with conn_conf:
+        nengo.Connection(hanoi_node.focus_viz, viz_node[0])
+        nengo.Connection(hanoi_node.goal_viz, viz_node[1])
+        nengo.Connection(hanoi_node.peg_viz, viz_node[2])
+        nengo.Connection(hanoi_node.pos_viz, viz_node[3:6])
 
 # Aside:
 # How the hell would this map onto Spaun?

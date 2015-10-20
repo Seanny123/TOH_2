@@ -53,8 +53,8 @@ def toh_node_create(disk_count, D, vocab):
 
                     peg = 'ABC'[pegs.index(np.max(pegs))]
                     if peg != toh.peg(disk):
-                        if toh.can_move(disk,peg):
-                            toh.move(disk,peg)
+                        if toh.can_move(disk, peg):
+                            toh.move(disk, peg)
                             print 'Moving D%d to %s'%(disk,peg)
                         else:    
                             print 'Cannot move D%d to %s'%(disk,peg)
@@ -111,7 +111,7 @@ class TowerOfHanoi(object):
         self.pstc = 0.01
         # make some matrices as well for faster dot-producting?
         self.pegs = [vocab.parse('A'), vocab.parse('B'), vocab.parse('C')]
-        self.disks = [vocab.parse('D%d'%i) for i in range(disk_count)]+[vocab.parse('NONE')]
+        self.disks = [vocab.parse('D%d' %i) for i in range(disk_count)] + [vocab.parse('NONE')]
         self.reset()
         self.location_dict = {'A':0, 'B':1, 'C':2}
         self.zero = [0]*D
